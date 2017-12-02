@@ -38,7 +38,7 @@ module.exports = {
                 {
                     template: 'vpc-nat-instance.yaml',
                     inputs: [
-                        { type: 'list', name: 'NATInstanceType', message: 'Instance type of the NAT instance:', choices: ['t2.nano', 't2.micro', 'TODO'] }
+                        { type: 'list', name: 'NATInstanceType', message: 'Instance type of the NAT instance:', choices: ['t2.nano', 't2.micro', 'TODO'], default: 0 }
                     ]
                 }
             ]
@@ -63,7 +63,7 @@ module.exports = {
                     template: 'lambda.yaml',
                     inputs: [
                         { type: 'input', name: 'MemorySize', message: 'memory size:' },
-                        { type: 'list', name: 'Runtime', message: 'memory size:', choices: ['nodejs6.10']},
+                        { type: 'list', name: 'Runtime', message: 'lambda runtime:', choices: ['nodejs6.10', 'nodejs4.3'], default: 0},
                         { type: 'input', name: 'Timeout', message: 'execution timeout:', default: 3}
                     ]
                 }
