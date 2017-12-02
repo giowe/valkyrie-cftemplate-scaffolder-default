@@ -1,0 +1,19 @@
+{
+  "name": "valkyrie-cftemplate-scaffolder-default",
+  "version": "1.0.0",
+  "description": "Default Valkyrie CloudFormation scaffolder",
+  "main": "scaffolder.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/giowe/valkyrie-cftemplate-scaffolder-default.git"
+  },
+  "author": "Matteo Carrara",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/giowe/valkyrie-cftemplate-scaffolder-default/issues"
+  },
+  "homepage": "https://github.com/giowe/valkyrie-cftemplate-scaffolder-default#readme"
+}
