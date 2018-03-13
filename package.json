@@ -1,6 +1,6 @@
 {
   "name": "valkyrie-cftemplate-scaffolder-default",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Default Valkyrie CloudFormation scaffolder",
   "main": "scaffolder.js",
   "repository": {
