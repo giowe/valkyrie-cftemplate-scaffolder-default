@@ -2,7 +2,6 @@
   {
     "name": "vpc",
     "required": false,
-    "default": false,
     "message": "Do you want to setup a VPC?",
     "sources": [
       {
@@ -44,7 +43,6 @@
     "name": "vpc-nat",
     "dependsOn": "vpc",
     "required": false,
-    "default": false,
     "message": "Do you want to setup a VPC nat to allow your to connect to the Internet?",
     "sources": [
       {
@@ -75,7 +73,6 @@
     "name": "security-groups",
     "dependsOn": "vpc",
     "required": false,
-    "default": true,
     "message": "Do you want to setup a security group for your lambda?",
     "sources": [
       {
