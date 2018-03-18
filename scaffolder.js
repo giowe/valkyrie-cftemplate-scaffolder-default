@@ -81,7 +81,34 @@ module.exports = {
       })
     }
   },
-  update: (cloudFormation, config) => {},
-  delete: (cloudFormation, config) => {},
+  update: (cloudFormation, config, s3Bucket, s3ObjectVersion) => {},
+  delete: (cloudFormation, config) => {
+    const { vpc, 'vpc-nat': vpcNat, 'security-groups': securityGroups } = config;
+    const { enabled: vpcEnabled, type: vpcType } = vpc;
+    const { enabled: vpcNatEnabled, type: vpcNatType } = vpcNat;
+    const { enabled: securityGroupEnabled  } = securityGroups;
+
+    if(vpcEnabled) {
+      cloudFormation.deleteStack({
+        StackName: vpcType
+      });
+
+      if(vpcNatEnabled) {
+        cloudFormation.deleteStack({
+          StackName: vpcNatType
+        });
+      }
+
+      if(securityGroupEnabled) {
+        cloudFormation.deleteStack({
+          StackName: 'lambda-security-group'
+        });
+      }
+    }
+
+    cloudFormation.deleteStack({
+      StackName: 'lambda'
+    });
+  },
   templates
 };
