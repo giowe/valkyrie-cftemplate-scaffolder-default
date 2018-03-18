@@ -6,7 +6,7 @@
     "sources": [
       {
         "template": "vpc-2azs.yaml",
-        "message": "VPC with 2 AZs",
+        "choice": "VPC with 2 AZs",
         "inputs": [
           {
             "type": "input",
@@ -17,7 +17,7 @@
       },
       {
         "template": "vpc-3azs.yaml",
-        "message": "VPC with 3 AZs",
+        "choice": "VPC with 3 AZs",
         "inputs": [
           {
             "type": "input",
@@ -28,7 +28,7 @@
       },
       {
         "template": "vpc-4azs.yaml",
-        "message": "VPC with 4 AZs",
+        "choice": "VPC with 4 AZs",
         "inputs": [
           {
             "type": "input",
@@ -47,12 +47,12 @@
     "sources": [
       {
         "template": "vpc-nat-gateway.yaml",
-        "message": "VPC NAT gateway",
+        "choice": "VPC NAT gateway",
         "inputs": []
       },
       {
         "template": "vpc-nat-instance.yaml",
-        "message": "VPC NAT instance",
+        "choice": "VPC NAT instance",
         "inputs": [
           {
             "type": "list",
