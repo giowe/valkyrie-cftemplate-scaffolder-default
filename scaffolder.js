@@ -1,5 +1,6 @@
 const templates = require('./templates.json');
 const fs = require('fs');
+<<<<<<< HEAD
 
 const toCloudFormationParameters = (configNode) => {
   return Object.keys(configNode).map(ParameterKey => ({
