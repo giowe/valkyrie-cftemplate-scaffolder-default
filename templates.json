@@ -42,6 +42,12 @@
   {
     "name": "vpc-nat",
     "dependsOn": "vpc",
+    "softDependsOn": [
+      {
+        "TemplateName": "vpc",
+        "ParameterKey": "ParentVPCStack"
+      }
+    ],
     "required": false,
     "message": "Do you want to setup a VPC nat to allow your to connect to the Internet?",
     "sources": [
@@ -72,6 +78,12 @@
   {
     "name": "security-groups",
     "dependsOn": "vpc",
+    "softDependsOn": [
+      {
+        "TemplateName": "vpc",
+        "ParameterKey": "ParentVPCStack"
+      }
+    ]
     "required": false,
     "message": "Do you want to setup a security group for your lambda?",
     "sources": [
@@ -84,6 +96,16 @@
   {
     "name": "lambda",
     "required": true,
+    "softDependsOn": [
+      {
+        "TemplateName": "vpc",
+        "ParameterKey": "ParentVPCStack"
+      },
+      {
+        "TemplateName": "lambda-security-group",
+        "ParameterKey": "ParentSecurityGroupStack"
+      },
+    ]
     "sources": [
       {
         "template": "lambda.yaml",
