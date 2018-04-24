@@ -83,7 +83,7 @@
         "TemplateName": "vpc",
         "ParameterKey": "ParentVPCStack"
       }
-    ]
+    ],
     "required": false,
     "message": "Do you want to setup a security group for your lambda?",
     "sources": [
@@ -105,7 +105,7 @@
         "TemplateName": "lambda-security-group",
         "ParameterKey": "ParentSecurityGroupStack"
       },
-    ]
+    ],
     "sources": [
       {
         "template": "lambda.yaml",
