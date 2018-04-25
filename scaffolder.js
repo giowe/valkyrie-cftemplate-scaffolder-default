@@ -15,6 +15,20 @@ const createStack = (StackName, TemplateBody, Parameters) => {
     });
 };
 
+const deleteStack = (StackName) => {
+  cloudFormation.deleteStack({ StackName }).promise
+    .then(() => {
+      return new Promise((resolve, rej) => {
+        cloudFormation.waitFor('stackDeleteComplete', { StackName }, function(err, data) {
+          if (err)
+            rej(err);
+          else
+            resolve(data);
+        });
+      })
+    });
+};
+
 const resolve = function(path, obj) {
   return path.split('.').reduce(function(prev, curr) {
     return prev ? prev[curr] : undefined
@@ -66,34 +80,37 @@ module.exports = {
       }
     }
   },
-  update: (cloudFormation, config, s3Bucket, s3ObjectVersion) => {},
+  update: (cloudFormation, config) => {},
   delete: (cloudFormation, config) => {
-    const { vpc, 'vpc-nat': vpcNat, 'security-groups': securityGroups } = config;
-    const { enabled: vpcEnabled, type: vpcType } = vpc;
-    const { enabled: vpcNatEnabled, type: vpcNatType } = vpcNat;
-    const { enabled: securityGroupEnabled  } = securityGroups;
-
-    if(vpcEnabled) {
-      cloudFormation.deleteStack({
-        StackName: vpcType
-      });
-
-      if(vpcNatEnabled) {
-        cloudFormation.deleteStack({
-          StackName: vpcNatType
+    const promises = {};
+    const filteredTemplate =
+      templates
+        .filter(({ name }) => config[name] && config[name].enabled)
+        .map(template => {
+          template.templatesParameters = templatesParameters && templatesParameters.filter(({ TemplateName }) => config[TemplateName].enabled);
+          return template;
         });
+
+    while(filteredTemplate) {
+      const template = filteredTemplate.shift();
+      const { name, templatesParameters } = template;
+
+      if (templatesParameters && templatesParameters.find(({ TemplateName }) => !promises[TemplateName])) {
+        filteredTemplate.push(template);
+        continue;
       }
 
-      if(securityGroupEnabled) {
-        cloudFormation.deleteStack({
-          StackName: 'lambda-security-group'
-        });
+      const { type } = config[name];
+      const StackName = type || name;
+
+      if(templatesParameters) {
+        promises[name] = Promise
+          .all(templatesParameters.map(dep => promises[dep]))
+          .then(() => deleteStack(StackName));
+      } else {
+        promises[name] = deleteStack(StackName);
       }
     }
-
-    cloudFormation.deleteStack({
-      StackName: 'lambda'
-    });
   },
   templates
 };
