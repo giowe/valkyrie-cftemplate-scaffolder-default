@@ -15,6 +15,20 @@ const createStack = (StackName, TemplateBody, Parameters) => {
     });
 };
 
+const updateStack = (StackName, TemplateBody, Parameters) => {
+  cloudFormation.updateStack({ StackName, TemplateBody, Parameters }).promise
+    .then(() => {
+      return new Promise((resolve, rej) => {
+        cloudFormation.waitFor('stackUpdateComplete', { StackName }, function(err, data) {
+          if (err)
+            rej(err);
+          else
+            resolve(data);
+        });
+      })
+    });
+};
+
 const deleteStack = (StackName) => {
   cloudFormation.deleteStack({ StackName }).promise
     .then(() => {
@@ -29,6 +43,52 @@ const deleteStack = (StackName) => {
     });
 };
 
+const createOrUpdateStacks = (cloudFormation, config, create = true) => {
+  const promises = {};
+  const filteredTemplate =
+    templates
+      .filter(({ name }) => config[name] && config[name].enabled)
+      .map(template => {
+        template.templatesParameters = templatesParameters && templatesParameters.filter(({ TemplateName }) => config[TemplateName].enabled);
+        return template;
+      });
+
+  while(filteredTemplate) {
+    const template = filteredTemplate.shift();
+    const { name, parameters, templatesParameters, configParameters } = template;
+
+    if(templatesParameters && templatesParameters.find(({ TemplateName }) => !promises[TemplateName])) {
+      filteredTemplate.push(template);
+      continue;
+    }
+
+    const { type } = config[name];
+    const StackName = type || name;
+    const TemplateBody = fs.readFileSync(`vpc/${StackName}.yaml`);
+    const Parameters =
+      Object.keys(parameters).map(ParameterKey => ({ ParameterKey, ParameterValue: parameters[ParameterKey] }))
+        .push(
+          templatesParameters &&
+          templatesParameters
+            .map(({ ParameterKey, TemplateName }) => ({ ParameterKey, ParameterValue: config[TemplateName].type || TemplateName }))
+        )
+        .push(
+          configParameters &&
+          configParameters
+            .map(({ ParameterKey, ConfigKey }) => ({ ParameterKey, ParameterValue: resolve(ConfigKey, config) }))
+        );
+
+    if(templatesParameters) {
+      promises[name] = Promise
+        .all(templatesParameters.map(dep => promises[dep]))
+        .then(() => (create ? createStack : updateStack)(StackName, TemplateBody, Parameters));
+    } else {
+      promises[name] = (create ? createStack : updateStack)(StackName, TemplateBody, Parameters);
+    }
+  }
+  return promises;
+};
+
 const resolve = function(path, obj) {
   return path.split('.').reduce(function(prev, curr) {
     return prev ? prev[curr] : undefined
@@ -36,51 +96,8 @@ const resolve = function(path, obj) {
 };
 
 module.exports = {
-  create: (cloudFormation, config) => {
-    const promises = {};
-    const filteredTemplate =
-      templates
-        .filter(({ name }) => config[name] && config[name].enabled)
-        .map(template => {
-          template.templatesParameters = templatesParameters && templatesParameters.filter(({ TemplateName }) => config[TemplateName].enabled);
-          return template;
-        });
-
-    while(filteredTemplate) {
-      const template = filteredTemplate.shift();
-      const { name, parameters, templatesParameters, configParameters } = template;
-
-      if(templatesParameters && templatesParameters.find(({ TemplateName }) => !promises[TemplateName])) {
-        filteredTemplate.push(template);
-        continue;
-      }
-
-      const { type } = config[name];
-      const StackName = type || name;
-      const TemplateBody = fs.readFileSync(`vpc/${StackName}.yaml`);
-      const Parameters =
-        Object.keys(parameters).map(ParameterKey => ({ ParameterKey, ParameterValue: parameters[ParameterKey] }))
-          .push(
-            templatesParameters &&
-            templatesParameters
-              .map(({ ParameterKey, TemplateName }) => ({ ParameterKey, ParameterValue: config[TemplateName].type || TemplateName }))
-          )
-          .push(
-            configParameters &&
-            configParameters
-              .map(({ ParameterKey, ConfigKey }) => ({ ParameterKey, ParameterValue: resolve(ConfigKey, config) }))
-          );
-
-      if(templatesParameters) {
-        promises[name] = Promise
-          .all(templatesParameters.map(dep => promises[dep]))
-          .then(() => createStack(StackName, TemplateBody, Parameters));
-      } else {
-        promises[name] = createStack(StackName, TemplateBody, Parameters);
-      }
-    }
-  },
-  update: (cloudFormation, config) => {},
+  create: (cloudFormation, config) => createOrUpdateStacks(cloudFormation, config, true),
+  update: (cloudFormation, config) => createOrUpdateStacks(cloudFormation, config, false),
   delete: (cloudFormation, config) => {
     const promises = {};
     const filteredTemplate =
