@@ -36,8 +36,7 @@ module.exports = {
       const template = filteredTemplate.shift();
       const { name, parameters, templatesParameters, configParameters } = template;
 
-      let missing = null;
-      if(templatesParameters && (missing = templatesParameters.find(({ TemplateName }) => !promises[TemplateName]))) {
+      if(templatesParameters && templatesParameters.find(({ TemplateName }) => !promises[TemplateName])) {
         filteredTemplate.push(template);
         continue;
       }
