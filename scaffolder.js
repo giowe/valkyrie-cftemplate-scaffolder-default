@@ -1,84 +1,70 @@
 const templates = require('./templates.json');
 const fs = require('fs');
 
-const toCloudFormationParameters = (configNode) => {
-  return Object.keys(configNode).map(ParameterKey => ({
-    ParameterKey,
-    ParameterValue: configNode[ParameterKey]
-  }));
+const createStack = (StackName, TemplateBody, Parameters) => {
+  cloudFormation.createStack({ StackName, TemplateBody, Parameters }).promise
+    .then(() => {
+      return new Promise((resolve, rej) => {
+        cloudFormation.waitFor('stackCreateComplete', { StackName }, function(err, data) {
+          if (err)
+            rej(err);
+          else
+            resolve(data);
+        });
+      })
+    });
+};
+
+const resolve = function(path, obj) {
+  return path.split('.').reduce(function(prev, curr) {
+    return prev ? prev[curr] : undefined
+  }, obj || self)
 };
 
 module.exports = {
-  create: (cloudFormation, config, s3Bucket, s3ObjectVersion) => {
-    const { vpc, 'vpc-nat': vpcNat, 'security-groups': securityGroups, lambda, EnvironmentName, Description } = config;
-    const { enabled: vpcEnabled, type: vpcType, parameters: vpcParameters } = vpc;
-    const { enabled: vpcNatEnabled, type: vpcNatType, parameters: vpcNatParameters } = vpcNat;
-    const { enabled: securityGroupEnabled  } = securityGroups;
-    const { parameters: lambdaParameters } = lambda;
-
-    if(vpcEnabled) {
-      cloudFormation.createStack({
-        StackName: vpcType,
-        TemplateBody: fs.readFileSync(`vpc/${vpcType}.yaml`),
-        Parameters: toCloudFormationParameters(vpcParameters)
-      });
-
-      if(vpcNatEnabled) {
-        cloudFormation.createStack({
-          StackName: vpcNatType,
-          TemplateBody: fs.readFileSync(`vpc-nat/${vpcNatType}.yaml`),
-          Parameters: toCloudFormationParameters(vpcNatParameters).push({ ParameterKey: 'ParentVPCStack', ParameterValue: vpcType })
+  create: (cloudFormation, config) => {
+    const promises = {};
+    const filteredTemplate =
+      templates
+        .filter(({ name }) => config[name] && config[name].enabled)
+        .map(template => {
+          template.templatesParameters = templatesParameters && templatesParameters.filter(({ TemplateName }) => config[TemplateName].enabled);
+          return template;
         });
+
+    while(filteredTemplate) {
+      const template = filteredTemplate.shift();
+      const { name, parameters, templatesParameters, configParameters } = template;
+
+      let missing = null;
+      if(templatesParameters && (missing = templatesParameters.find(({ TemplateName }) => !promises[TemplateName]))) {
+        filteredTemplate.push(template);
+        continue;
       }
 
-      if(securityGroupEnabled) {
-        cloudFormation.createStack({
-          StackName: 'lambda-security-group',
-          TemplateBody: fs.readFileSync(`security-groups/lambda-security-group.yaml`),
-          Parameters: [
-            {
-              ParameterKey: 'EnvironmentName',
-              ParameterValue: EnvironmentName
-            },
-            {
-              ParameterKey: 'ParentVPCStack',
-              ParameterValue: vpcType
-            }
-          ]
-        });
-      }
+      const { type } = config[name];
+      const StackName = type || name;
+      const TemplateBody = fs.readFileSync(`vpc/${StackName}.yaml`);
+      const Parameters =
+        Object.keys(parameters).map(ParameterKey => ({ ParameterKey, ParameterValue: parameters[ParameterKey] }))
+          .push(
+            templatesParameters &&
+            templatesParameters
+              .map(({ ParameterKey, TemplateName }) => ({ ParameterKey, ParameterValue: config[TemplateName].type || TemplateName }))
+          )
+          .push(
+            configParameters &&
+            configParameters
+              .map(({ ParameterKey, ConfigKey }) => ({ ParameterKey, ParameterValue: resolve(ConfigKey, config) }))
+          );
 
-      cloudFormation.createStack({
-        StackName: 'lambda',
-        TemplateBody: fs.readFileSync(`lambda/lambda.yaml`),
-        Parameters: toCloudFormationParameters(lambdaParameters)
-          .concat([
-            {
-              ParameterKey: 'EnvironmentName',
-              ParameterValue: EnvironmentName
-            },
-            {
-              ParameterKey: 'LambdaDescription',
-              ParameterValue: Description
-            },
-            {
-              ParameterKey: 'ParentVPCStack',
-              ParameterValue: vpcType
-            },
-            {
-              ParameterKey: 'S3Bucket',
-              ParameterValue: s3Bucket
-            },
-            {
-              ParameterKey: 'S3ObjectVersion',
-              ParameterValue: s3ObjectVersion
-            },
-            {
-              ParameterKey: 'ParentSecurityGroupStack',
-              ParameterValue: 'lambda-security-group'
-            }
-          ])
-      })
+      if(templatesParameters) {
+        promises[name] = Promise
+          .all(templatesParameters.map(dep => promises[dep]))
+          .then(() => createStack(StackName, TemplateBody, Parameters));
+      } else {
+        promises[name] = createStack(StackName, TemplateBody, Parameters);
+      }
     }
   },
   update: (cloudFormation, config, s3Bucket, s3ObjectVersion) => {},

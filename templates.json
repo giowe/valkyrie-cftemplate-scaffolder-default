@@ -42,7 +42,7 @@
   {
     "name": "vpc-nat",
     "dependsOn": "vpc",
-    "softDependsOn": [
+    "templatesParameters": [
       {
         "TemplateName": "vpc",
         "ParameterKey": "ParentVPCStack"
@@ -77,8 +77,14 @@
   },
   {
     "name": "security-groups",
+    "configParameters": [
+      {
+        "ParameterKey": "EnvironmentName",
+        "ConfigKey": "projectName"
+      }
+    ],
     "dependsOn": "vpc",
-    "softDependsOn": [
+    "templatesParameters": [
       {
         "TemplateName": "vpc",
         "ParameterKey": "ParentVPCStack"
@@ -96,15 +102,33 @@
   {
     "name": "lambda",
     "required": true,
-    "softDependsOn": [
+    "configParameters": [
+      {
+        "ParameterKey": "EnvironmentName",
+        "ConfigKey": "projectName"
+      },
+      {
+        "ParameterKey": "S3Bucket",
+        "ConfigKey": "S3Bucket"
+      },
+      {
+        "ParameterKey": "S3ObjectVersion",
+        "ConfigKey": "S3ObjectVersion"
+      },
+      {
+        "ParameterKey": "LambdaDescription",
+        "ConfigKey": "LambdaDescription"
+      }
+    ],
+    "templatesParameters": [
       {
         "TemplateName": "vpc",
         "ParameterKey": "ParentVPCStack"
       },
       {
-        "TemplateName": "lambda-security-group",
+        "TemplateName": "security-groups",
         "ParameterKey": "ParentSecurityGroupStack"
-      },
+      }
     ],
     "sources": [
       {
