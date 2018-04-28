@@ -44,6 +44,18 @@ const deleteStack = (cloudFormation, StackName) => {
     });
 };
 
+const filterEnabledTemplates = (templates, { Project: { Parameters: inputParameters } } ) => {
+  return templates
+    //Filters enabled templates (and required templates)
+    .filter(({ name, required }) => inputParameters[name] && (inputParameters[name].enabled || required ))
+    //Filters optional parameters linked to enabled templates (soft dependencies)
+    .map(template => ({
+        ...template,
+        templatesParameters: template.templatesParameters && template.templatesParameters.filter(({ TemplateName }) => inputParameters[TemplateName] && (inputParameters[TemplateName].enabled !== false /*I have to accept enabled=undefined (for required fields)*/))
+      })
+    );
+};
+
 const sortTemplateDependencies = (templates, callback) => {
   const promises = {};
 
@@ -67,18 +79,7 @@ const sortTemplateDependencies = (templates, callback) => {
 const createOrUpdateStacks = (cloudFormation, config, create = true) => {
   const { Project: { Parameters: inputParameters }, Environments } = config;
 
-  //Filters enabled templates
-  const filteredTemplate =
-    templates
-      .filter(({ name, required }) => inputParameters[name] && (inputParameters[name].enabled || required ))
-      //Filters enabled template parameters (soft dependencies)
-      .map(template => ({
-          ...template,
-          templatesParameters: template.templatesParameters && template.templatesParameters.filter(({ TemplateName }) => inputParameters[TemplateName] && (inputParameters[TemplateName].enabled !== false /*I have to accept enabled=undefined (for required fields)*/))
-        })
-      );
-
-  return sortTemplateDependencies(filteredTemplate, (template, promises) => {
+  return sortTemplateDependencies(filterEnabledTemplates(templates, config), (template, promises) => {
     const { name, templatesParameters, configParameters } = template;
 
     //Extracts useful information from parameters asked to the user (valk config)
@@ -122,20 +123,8 @@ module.exports = {
   create: (cloudFormation, config) => createOrUpdateStacks(cloudFormation, config, true),
   update: (cloudFormation, config) => createOrUpdateStacks(cloudFormation, config, false),
   delete: (cloudFormation, config) => {
-    const { Project: { Parameters: inputParameters }, Environments } = config;
 
-    //Filters enabled templates
-    const filteredTemplate =
-      templates
-        .filter(({ name, required }) => inputParameters[name] && (inputParameters[name].enabled || required ))
-        //Filters enabled template parameters (soft dependencies)
-        .map(template => ({
-            ...template,
-            templatesParameters: template.templatesParameters && template.templatesParameters.filter(({ TemplateName }) => inputParameters[TemplateName] && (inputParameters[TemplateName].enabled !== false /*I have to accept enabled=undefined (for required fields)*/))
-          })
-        );
-
-    return sortTemplateDependencies(filteredTemplate, (template, promises) => {
+    return sortTemplateDependencies(filterEnabledTemplates(templates, config), (template, promises) => {
       const { name, templatesParameters } = template;
 
       const StackName = name;
@@ -143,9 +132,9 @@ module.exports = {
       if(templatesParameters) {
         return Promise
           .all(templatesParameters.map(dep => promises[dep]))
-          .then(() => deleteStack(StackName));
+          .then(() => deleteStack(cloudFormation, StackName));
       } else {
-        return deleteStack(StackName);
+        return deleteStack(cloudFormation, StackName);
       }
     });
   },
