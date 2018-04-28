@@ -1,0 +1,35 @@
+{
+  "projectName": "test",
+  "environments": [
+    "production"
+  ],
+  "description": "test",
+  "region": "eu-west-1",
+  "author": "",
+  "license": "MIT",
+  "vpc": {
+    "enabled": true,
+    "source": "VPC with 2 AZs",
+    "inputs": {
+      "ClassB": "123"
+    }
+  },
+  "vpc-nat": {
+    "enabled": true,
+    "source": "VPC NAT gateway"
+  },
+  "security-groups": {
+    "enabled": true
+  },
+  "lambda": {
+    "inputs": {
+      "MemorySize": "128",
+      "Runtime": "nodejs6.10",
+      "Timeout": 3
+    },
+    "enabled": true
+  },
+  "apigateway": {
+    "enabled": true
+  }
+}
