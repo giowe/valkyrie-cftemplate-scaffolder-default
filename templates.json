@@ -41,6 +41,7 @@
   },
   {
     "name": "vpc-nat",
+    "customScript": true,
     "dependsOn": "vpc",
     "templatesParameters": [
       {
@@ -80,7 +81,7 @@
     "configParameters": [
       {
         "ParameterKey": "EnvironmentName",
-        "ConfigKey": "projectName"
+        "ConfigKey": "Project.projectName"
       }
     ],
     "dependsOn": "vpc",
@@ -105,7 +106,7 @@
     "configParameters": [
       {
         "ParameterKey": "EnvironmentName",
-        "ConfigKey": "projectName"
+        "ConfigKey": "Project.projectName"
       },
       {
         "ParameterKey": "S3Bucket",

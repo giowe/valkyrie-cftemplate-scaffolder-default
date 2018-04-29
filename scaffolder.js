@@ -2,7 +2,9 @@ const templates = require('./templates.json');
 const fs = require('fs');
 const path = require("path");
 
-const createStack = (cloudFormation, StackName, TemplateBody, Parameters) => {
+const api = {};
+
+const createStack = api.createStack = (cloudFormation, StackName, TemplateBody, Parameters) => {
   return cloudFormation.createStack({ StackName, TemplateBody, Parameters }).promise
     .then(() => {
       return new Promise((resolve, rej) => {
@@ -16,7 +18,7 @@ const createStack = (cloudFormation, StackName, TemplateBody, Parameters) => {
     });
 };
 
-const updateStack = (cloudFormation, StackName, TemplateBody, Parameters) => {
+const updateStack = api.updateStack = (cloudFormation, StackName, TemplateBody, Parameters) => {
   return cloudFormation.updateStack({ StackName, TemplateBody, Parameters }).promise
     .then(() => {
       return new Promise((resolve, rej) => {
@@ -30,7 +32,7 @@ const updateStack = (cloudFormation, StackName, TemplateBody, Parameters) => {
     });
 };
 
-const deleteStack = (cloudFormation, StackName) => {
+const deleteStack = api.deleteStack = (cloudFormation, StackName) => {
   return cloudFormation.deleteStack({ StackName }).promise
     .then(() => {
       return new Promise((resolve, rej) => {
@@ -44,7 +46,7 @@ const deleteStack = (cloudFormation, StackName) => {
     });
 };
 
-const filterEnabledTemplates = (templates, { Project: { Parameters: inputParameters } } ) => {
+const filterEnabledTemplates = api.filterEnabledTemplates = (templates, { Project: { Parameters: inputParameters } } ) => {
   return templates
     //Filters enabled templates (and required templates)
     .filter(({ name, required }) => inputParameters[name] && (inputParameters[name].enabled || required ))
@@ -56,7 +58,7 @@ const filterEnabledTemplates = (templates, { Project: { Parameters: inputParamet
     );
 };
 
-const sortTemplateDependencies = (templates, callback) => {
+const sortTemplateDependencies = api.sortTemplateDependencies = (templates, callback) => {
   const promises = {};
 
   while(templates.length > 0) {
@@ -76,17 +78,24 @@ const sortTemplateDependencies = (templates, callback) => {
   return promises;
 };
 
+//This method is used to resolve an object by using a string ex obj1.obj2.interestingKey
+const resolve = api.resolve = function(path, obj) {
+  return path.split('.').reduce(function(prev, curr) {
+    return prev ? prev[curr] : undefined
+  }, obj || self)
+};
+
 const createOrUpdateStacks = (cloudFormation, config, create = true) => {
   const { Project: { Parameters: inputParameters }, Environments } = config;
 
   return sortTemplateDependencies(filterEnabledTemplates(templates, config), (template, promises) => {
-    const { name, templatesParameters, configParameters } = template;
+    const { name, templatesParameters, configParameters, customScript } = template;
 
     //Extracts useful information from parameters asked to the user (valk config)
     const { source: type, inputs } = inputParameters[name];
     const StackName = name;
     //Reads the CloudFormation Template body.
-    const TemplateBody = fs.readFileSync(path.resolve(__dirname, `./cloudformation/${name}/${type || template['sources'][0]['template']}`), { encoding: 'utf8' });
+    const TemplateBody = fs.readFileSync(path.resolve(__dirname, `./src/cloudformation/${name}/${type || template['sources'][0]['template']}`), { encoding: 'utf8' });
 
     //Creates CloudFormation Parameters objects by merging input paramaters (valk config) + templates parameters (soft dependencies between templates) + config parameters (other general parameters from valk config ex projectName)
     const Parameters = (inputs && Object.keys(inputs).map(ParameterKey => ({ ParameterKey, ParameterValue: inputs[ParameterKey] }))) || [];
@@ -101,40 +110,44 @@ const createOrUpdateStacks = (cloudFormation, config, create = true) => {
         .map(({ ParameterKey, ConfigKey }) => ({ ParameterKey, ParameterValue: resolve(ConfigKey, config) }))
     );
 
+    const promise = () =>
+      customScript ?
+        require(path.resolve(__dirname, `./src/scripts/${name}.js`))[create ? 'create' : 'update'](cloudFormation, StackName, TemplateBody, Parameters, promises, api)
+        :
+        (create ? createStack : updateStack)(cloudFormation, StackName, TemplateBody, Parameters);
+
     //If template has dependencies it must be executed when the parent template is created (or updated)
     if(templatesParameters) {
       return Promise
         .all(templatesParameters.map(dep => promises[dep]))
-        .then(() => (create ? createStack : updateStack)(cloudFormation, StackName, TemplateBody, Parameters));
+        .then(promise);
     } else {
-      return (create ? createStack : updateStack)(cloudFormation, StackName, TemplateBody, Parameters);
+      return promise;
     }
   })
-};
-
-//This method is used to resolve an object by using a string ex obj1.obj2.interestingKey
-const resolve = function(path, obj) {
-  return path.split('.').reduce(function(prev, curr) {
-    return prev ? prev[curr] : undefined
-  }, obj || self)
 };
 
 module.exports = {
   create: (cloudFormation, config) => createOrUpdateStacks(cloudFormation, config, true),
   update: (cloudFormation, config) => createOrUpdateStacks(cloudFormation, config, false),
   delete: (cloudFormation, config) => {
-
     return sortTemplateDependencies(filterEnabledTemplates(templates, config), (template, promises) => {
-      const { name, templatesParameters } = template;
+      const { name, templatesParameters, customScript } = template;
 
       const StackName = name;
+
+      const promise = () =>
+        customScript ?
+          require(path.resolve(__dirname, `./src/scripts/${name}.js`)).delete(cloudFormation, config, promises, api)
+          :
+          deleteStack(cloudFormation, StackName);
 
       if(templatesParameters) {
         return Promise
           .all(templatesParameters.map(dep => promises[dep]))
-          .then(() => deleteStack(cloudFormation, StackName));
+          .then(promise);
       } else {
-        return deleteStack(cloudFormation, StackName);
+        return promise;
       }
     });
   },
