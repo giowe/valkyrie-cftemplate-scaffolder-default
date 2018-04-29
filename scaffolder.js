@@ -94,7 +94,8 @@ const createOrUpdateStacks = (cloudFormation, config, create = true) => {
     //Extracts useful information from parameters asked to the user (valk config)
     const { source: type, inputs } = inputParameters[name];
     const StackName = name;
-    //Reads the CloudFormation Template body.
+
+    //Reads the CloudFormation Template body (if there are multiple templates files user is asked to choose one (type) else I get the first (the only one) template file from templates.json)
     const TemplateBody = fs.readFileSync(path.resolve(__dirname, `./src/cloudformation/${name}/${type || template['sources'][0]['template']}`), { encoding: 'utf8' });
 
     //Creates CloudFormation Parameters objects by merging input paramaters (valk config) + templates parameters (soft dependencies between templates) + config parameters (other general parameters from valk config ex projectName)
