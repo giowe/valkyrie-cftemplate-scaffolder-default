@@ -26,9 +26,9 @@ const createOrUpdateStack = (cloudFormation, config, TemplateBody, Parameters, a
 };
 
 module.exports = {
-  create: (cloudFormation, config, TemplateBody, Parameters, promises, api) => createOrUpdateStack(cloudFormation, config, TemplateBody, Parameters, api),
-  update: (cloudFormation, config, TemplateBody, Parameters, promises, api) => createOrUpdateStack(cloudFormation, config, TemplateBody, Parameters, api, false),
-  delete: (cloudFormation, config, promises, api) => {
+  create: (cloudFormation, config, TemplateBody, Parameters, api) => createOrUpdateStack(cloudFormation, config, TemplateBody, Parameters, api),
+  update: (cloudFormation, config, TemplateBody, Parameters, api) => createOrUpdateStack(cloudFormation, config, TemplateBody, Parameters, api, false),
+  delete: (cloudFormation, config, api) => {
     const nVpcs = getNumberOfVpc(config);
     let subnet = 'A';
     const templatePromises = [];

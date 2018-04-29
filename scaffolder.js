@@ -113,7 +113,7 @@ const createOrUpdateStacks = (cloudFormation, config, create = true) => {
 
     const promise = () =>
       customScript ?
-        require(path.resolve(__dirname, `./src/scripts/${name}.js`))[create ? 'create' : 'update'](cloudFormation, StackName, TemplateBody, Parameters, promises, api)
+        require(path.resolve(__dirname, `./src/scripts/${name}.js`))[create ? 'create' : 'update'](cloudFormation, StackName, TemplateBody, Parameters, api)
         :
         (create ? createStack : updateStack)(cloudFormation, StackName, TemplateBody, Parameters);
 
@@ -139,7 +139,7 @@ module.exports = {
 
       const promise = () =>
         customScript ?
-          require(path.resolve(__dirname, `./src/scripts/${name}.js`)).delete(cloudFormation, config, promises, api)
+          require(path.resolve(__dirname, `./src/scripts/${name}.js`)).delete(cloudFormation, config, api)
           :
           deleteStack(cloudFormation, StackName);
 
